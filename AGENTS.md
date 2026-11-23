@@ -10,3 +10,5 @@
 - This agreement applies when the assistant performs an update; it does not imply background monitoring of edits made outside the chat.
 
 - In review formulas, retain the lecture notes' full descriptive terms (such as CPU time, CPU clock cycles, Clock cycle time, Clock rate and Instruction count); do not introduce shorthand symbols. Keep abbreviations used in the source, such as CPI.
+
+- For future exam questions, place a small question link/button to the right of the relevant knowledge topic only. Open questions on a separate HTML page under `questions/`. Show questions and options immediately; hide each answer and explanation in a native `<details>` disclosure without the `open` attribute, revealed with its triangle. Include a link back to the relevant lecture, keep the layout responsive, and label derived solutions as unofficial.
