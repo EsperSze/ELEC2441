@@ -93,14 +93,7 @@
 <p><strong>Example: reset, then hold.</strong></p>
 <ol><li>Apply R = 1, S = 0. The upper NOR gate forces Q = 0.</li><li>The lower gate receives S = 0 and Q = 0, so Q′ becomes 1.</li><li>Change R back to 0, leaving S = 0. The upper gate still receives Q′ = 1, keeping Q = 0.</li><li>The lower gate still receives two zeros, keeping Q′ = 1. The bit is remembered.</li></ol>
 </div></details>
-<details open><summary>Our example: what if Q = Q′ = 0 and R = S = 0?</summary><div class="topic">
-<p><strong>This is not a stable state.</strong> Both NOR gates initially see two zeros, so both try to raise their outputs. R and S are external inputs and can remain at 0 throughout; feedback changes Q and Q′.</p>
-<p>If the upper gate responds first:</p>
-<ol><li>Q rises to 1.</li><li>This 1 feeds the lower gate, forcing Q′ to 0.</li><li>With R = 0 and Q′ = 0, the upper gate keeps Q = 1.</li></ol>
-<p>The circuit settles at <strong>Q = 1, Q′ = 0</strong>. If the lower gate wins instead, it settles at <strong>Q = 0, Q′ = 1</strong>. The winner cannot be predicted from the logic diagram alone; the circuit may briefly become metastable.</p>
-<p><strong>The hold rule assumes a previous valid stable state.</strong> It does not preserve the invalid pair (0, 0). Releasing R = S = 1 to R = S = 0 simultaneously creates this problem, which is another reason to avoid the forbidden input.</p>
-<p><strong>Initial values:</strong> do not assume Q starts at 0. If no initial state or earlier set/reset is given, R = S = 0 only tells you that the previous state is held; its numerical value is unknown. A valid set or reset establishes a known state.</p>
-</div></details>
+
 <details open><summary>2.2.2 Clocked RS flip-flop: level versus edge triggering</summary><div class="topic">
 <figure class="lecture-figure"><img src="assets/lt2-clocked-rs.png" alt="Lecture diagram of an RS latch gated by a clock through two AND gates"><figcaption>Cropped from the supplied LT2 page 8 screenshot. The state table applies while CLK = 1.</figcaption></figure>
 <p>The AND gates control whether R and S reach the NOR latch:</p>
