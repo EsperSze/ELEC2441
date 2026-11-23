@@ -8,3 +8,5 @@
 - Remote: git@github.com:EsperSze/ELEC2441.git
 - On this Windows computer, use Windows OpenSSH with the user's SSH agent when needed: `git -c core.sshCommand="C:/Windows/System32/OpenSSH/ssh.exe -o BatchMode=yes -o ConnectTimeout=15" push`.
 - This agreement applies when the assistant performs an update; it does not imply background monitoring of edits made outside the chat.
+
+- In review formulas, retain the lecture notes' full descriptive terms (such as CPU time, CPU clock cycles, Clock cycle time, Clock rate and Instruction count); do not introduce shorthand symbols. Keep abbreviations used in the source, such as CPI.
