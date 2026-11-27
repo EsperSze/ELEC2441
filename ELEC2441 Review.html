@@ -113,15 +113,29 @@
 </tbody></table></div><p><strong>Interrupts avoid repeated polling. DMA also avoids CPU instructions for copying each item.</strong></p>
 </div></details>
 <details open><summary>2.9.1 Programmed I/O — CPU checks and transfers</summary><div class="topic">
-<p>The I/O interface contains a <strong>Control/Status Register (CSR)</strong> for commands and status, and a <strong>Data Buffer Register (DBR)</strong> for the actual data. These are device registers, not ordinary RAM.</p>
-<ol><li>CPU writes a command to the CSR.</li><li>CPU checks the status until the device is ready. While polling, it spends instructions on checking. <strong>The lecture comparison (printed p. 44) uses the busy-wait polling model:</strong> a program loop repeatedly reads the CSR and tests whether the device is ready. Continuous checking means repeated instruction-driven checks, not monitoring at every instant. The program determines the checking frequency; polling can also be periodic, but that is not the waiting model emphasized here.</li><li>For input, the device places data in the DBR; the CPU reads it. For output, the CPU writes data to the DBR when the device can accept it.</li></ol>
-<div class="io-flow" aria-label="Programmed input sequence"><span>Write command to CSR</span><b>→</b><span>Check status<br>Not ready? Check again</span><b>→</b><span>Ready: read DBR into CPU</span></div>
-<p><strong>Lecture example:</strong> CSR is at <code>$1000</code>, DBR at <code>$1001</code>, and the read command is <code>$12</code>.</p>
-<pre><code>LDAA #$12    ; load the command value into A
-STAA $1000   ; send the command to the CSR
-LDAB $1001   ; read the input data from the DBR into B</code></pre>
-<p>This short example assumes data is ready when the DBR is read; it does not show an explicit polling loop. <code>#$12</code> is an immediate value, whereas <code>$1000</code> and <code>$1001</code> are addresses.</p>
-<p><strong>Memory-mapped I/O:</strong> hardware maps certain CPU addresses to device registers. The address decoder selects the I/O interface rather than RAM, so ordinary load/store instructions access the device. The slides use this name alongside programmed I/O; strictly, address mapping and polling are separate ideas. Interrupt I/O can also use memory-mapped registers.</p>
+<p>In the lecture's <strong>busy-wait polling model</strong>, the CPU instructs the I/O device to operate, repeatedly checks its status, and transfers the data when it is ready. The program in main memory tells the CPU what to do.</p>
+<figure style="margin:20px 0"><a href="assets/lt2-programmed-io.png" target="_blank" rel="noopener"><img src="assets/lt2-programmed-io.png" alt="Programmed input: (1) load command $12 into A, (2) write A to CSR at $1000, (3) after I/O is done read DBR at $1001 into B" style="display:block;width:100%;max-width:650px;height:auto;margin:0 auto" loading="lazy"></a><figcaption style="text-align:center">LT2 programmed I/O example — cleaned diagram. Click to open at full resolution.</figcaption></figure>
+<h3>Registers in this example</h3>
+<table><tr><th>Register</th><th>Purpose</th></tr><tr><td>Control/Status Register (CSR), $1000</td><td>The CPU writes commands to control I/O operation and reads status information to check readiness.</td></tr><tr><td>Data Buffer Register (DBR), $1001</td><td>Temporarily holds the actual data being transferred between the CPU and the device. For input, the CPU reads it; for output, the CPU writes it when the interface can accept data.</td></tr><tr><td>A and B</td><td>Registers inside the CPU. Here, A holds the command; B receives the input data byte.</td></tr></table>
+<p><strong>CSR and DBR are I/O interface registers, not ordinary RAM.</strong> The CSR controls the interface/device's I/O operation; the DBR holds the data, not the command.</p>
+<h3>① Load the command into A: LDAA #$12</h3>
+<p>The CPU executes the instruction stored in main memory and loads the command value <code>$12</code> into register A. <code>#</code> means an <strong>immediate value</strong>: use the value $12 itself, not the contents of address $12. At this step, the command has not yet been sent to the device.</p>
+<h3>② Send the command to the CSR: STAA $1000</h3>
+<p>The CPU stores the contents of A into the CSR at address <code>$1000</code>, instructing the input device to operate. In this lecture example, <code>$12</code> is the input command; its meaning depends on the device/interface.</p>
+<p>The <strong>address bus</strong> selects $1000, the <strong>data bus</strong> carries $12, and the <strong>control bus</strong> carries the write control signal. The curved red arrows show the logical transfers, not extra physical buses.</p>
+<h3>Between ② and ③: “Wait for I/O done”</h3>
+<p>The device performs the input operation and places the data byte in the DBR. Meanwhile, the CPU <strong>repeatedly reads the CSR and tests the relevant status bit until the data is ready</strong>. This is busy-waiting: CPU time is spent checking instead of running other jobs.</p>
+<p>“Continuously checking” means repeated checks performed by program instructions, not monitoring at every instant. The program determines the checking frequency. Polling can also be periodic, but busy-waiting is the model emphasized here.</p>
+<p><strong>“Wait for I/O done” describes the waiting step; it is not an assembly instruction.</strong> The diagram omits the actual polling-loop instructions and the status-bit test.</p>
+<h3>③ Read the data into B: LDAB $1001</h3>
+<p>Once the data is ready, the CPU reads the <strong>contents of the DBR at $1001</strong> into register B. The address bus selects $1001, the control bus signals a read, and the data bus carries the data byte from the interface to the CPU.</p>
+<p><strong>B receives the input data byte, not the address $1001 and not the command $12.</strong> This instruction transfers the data to B; storing it in main memory would require another instruction.</p>
+<pre><code>LDAA #$12    ; (1) load the command value into A
+STAA $1000   ; (2) write the command to the CSR
+; Wait for I/O done: poll CSR status until ready
+; (the polling instructions are not shown in the diagram)
+LDAB $1001   ; (3) read the input data from the DBR into B</code></pre>
+<p><strong>Why is this also memory-mapped I/O?</strong> The CSR and DBR occupy addresses in the CPU's address space, so ordinary load/store instructions access them. Hardware selects the I/O interface rather than RAM for those addresses. <strong>Memory-mapped I/O describes how registers are addressed; polling describes how the CPU checks readiness.</strong> Interrupt I/O can also use memory-mapped registers.</p>
 </div></details>
 <details open><summary>2.9.2 Interrupt I/O: the complete process</summary><div class="topic">
 <p>Interrupt I/O allows the CPU to <strong>run other jobs without waiting for the I/O device to finish</strong>. When the device needs attention, it requests an interrupt, and the CPU executes the appropriate <strong>Interrupt Service Routine (ISR)</strong>.</p>
