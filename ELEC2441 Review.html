@@ -114,7 +114,7 @@
 </div></details>
 <details open><summary>2.9.1 Programmed I/O — CPU checks and transfers</summary><div class="topic">
 <p>The I/O interface contains a <strong>Control/Status Register (CSR)</strong> for commands and status, and a <strong>Data Buffer Register (DBR)</strong> for the actual data. These are device registers, not ordinary RAM.</p>
-<ol><li>CPU writes a command to the CSR.</li><li>CPU checks the status until the device is ready. While polling, it spends instructions on checking.</li><li>For input, the device places data in the DBR; the CPU reads it. For output, the CPU writes data to the DBR when the device can accept it.</li></ol>
+<ol><li>CPU writes a command to the CSR.</li><li>CPU checks the status until the device is ready. While polling, it spends instructions on checking. <strong>The lecture comparison (printed p. 44) uses the busy-wait polling model:</strong> a program loop repeatedly reads the CSR and tests whether the device is ready. Continuous checking means repeated instruction-driven checks, not monitoring at every instant. The program determines the checking frequency; polling can also be periodic, but that is not the waiting model emphasized here.</li><li>For input, the device places data in the DBR; the CPU reads it. For output, the CPU writes data to the DBR when the device can accept it.</li></ol>
 <div class="io-flow" aria-label="Programmed input sequence"><span>Write command to CSR</span><b>→</b><span>Check status<br>Not ready? Check again</span><b>→</b><span>Ready: read DBR into CPU</span></div>
 <p><strong>Lecture example:</strong> CSR is at <code>$1000</code>, DBR at <code>$1001</code>, and the read command is <code>$12</code>.</p>
 <pre><code>LDAA #$12    ; load the command value into A
