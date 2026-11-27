@@ -14,3 +14,5 @@
 - For future exam questions, place a small question link/button to the right of the relevant knowledge topic only. Open questions on a separate HTML page under `questions/`. Show questions and options immediately; hide each answer and explanation in a native `<details>` disclosure without the `open` attribute, revealed with its triangle. Include a link back to the relevant lecture, keep the layout responsive, and label derived solutions as unofficial.
 
 - When the user annotates text and writes "hidden note", add a concise English explanation at that exact text using the established hover-tooltip format. Show it on mouse hover and keyboard focus; keep it hidden otherwise. Render the tooltip outside clipping containers and position it within the viewport, following the corrected ISR tooltip. Check the change, then commit and push automatically without asking for a separate reminder.
+
+- Use soft gray backgrounds for all text highlights; do not use bright highlight colors. Apply this to future note updates as well.
