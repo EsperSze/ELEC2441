@@ -356,10 +356,25 @@ Exit</code></pre>
 <p><strong>Where does a branch go?</strong> The ARM-state B/BL encoding has a 4-bit condition, branch opcode bits and a link bit, then a signed 24-bit displacement in words. Labels let the assembler compute the displacement. Writing r15 (PC), for example with <code>MOV pc, lr</code> or a load into pc, also redirects execution.</p>
 <p><span class="past-paper-tested" title="2022 Q1(5), 2024 Q1(3)">Target address = address of the branch instruction + 8 + (signed word displacement × 4)</span>. A word spans 4 bytes. From 0x1000, a displacement of +3 targets 0x1008 + 12 = 0x1014. A negative displacement branches backwards. The 32-bit PC supplies the base and the signed field reaches about 32 MiB in either direction. If given the architectural PC value, it already includes the +8.</p>
 <details><summary>Conditional execution · shorter version of the pay example</summary><div class="topic">
-<pre><code>        CMP   r0, r1
-        ADDEQ r2, r3, r4     ; execute when Z = 1
-        SUBNE r2, r3, r4     ; execute when Z = 0</code></pre>
-<p>Both arithmetic instructions test the flags from the same CMP. These forms leave those flags intact. Exactly one writes r2. This gives the same 160 on the unequal-year slide example.</p>
+<p>LT4 p. 12 revisits the yearly-pay calculation from p. 6. Compare the year (<code>r0</code>) with the given next leap year (<code>r1</code>). An equal year earns a bonus. In the other case, the slide subtracts the bonus. Earnings are in <code>r3</code>, the bonus is in <code>r4</code>, and pay goes into <code>r2</code>.</p>
+<h3>Version 1 · Branch to the selected calculation</h3>
+<pre><code>        CMP     r0, r1        ; compare the two years
+        BNE     Else          ; different years: go to the subtraction
+        ADD     r2, r3, r4    ; equal years: pay = earnings + bonus
+        B       Exit          ; skip the subtraction after adding
+Else    SUB     r2, r3, r4    ; pay = earnings - bonus
+Exit</code></pre>
+<h3>Version 2 · Apply the condition to each calculation</h3>
+<pre><code>        CMP     r0, r1        ; equal years set Z = 1, different years set Z = 0
+        ADDEQ   r2, r3, r4    ; ADD if equal: execute only when Z = 1
+        SUBNE   r2, r3, r4    ; SUB if unequal: execute only when Z = 0</code></pre>
+<p><strong>Which values are equal?</strong> <code>EQ</code> and <code>NE</code> test the zero flag set by <code>CMP r0, r1</code>. The years determine which instruction runs. The earnings and bonus supply the numbers for the arithmetic. Neither arithmetic instruction here updates the flags, so both see the same comparison and exactly one writes to <code>r2</code>.</p>
+<p>To trace both paths, use earnings of 100 and a bonus of 20.</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Years compared</th><th scope="col">Branch version</th><th scope="col">Conditional version</th><th scope="col">Final pay in r2</th></tr></thead><tbody>
+<tr><td>Equal (Z = 1)</td><td>BNE falls through to ADD. B Exit skips SUB.</td><td>ADDEQ adds. SUBNE is skipped.</td><td>100 + 20 = 120</td></tr>
+<tr><td>Different (Z = 0)</td><td>BNE jumps to Else and SUB runs.</td><td>ADDEQ is skipped. SUBNE subtracts.</td><td>100 − 20 = 80</td></tr>
+</tbody></table></div>
+<p>With the slide’s original inputs, the years 22 and 24 differ, and both versions produce 160.</p>
 </div></details>
 </div></details>
 <h2>4.2 · Calling procedures</h2>
