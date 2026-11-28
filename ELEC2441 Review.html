@@ -456,6 +456,27 @@ L1      SUB r0, r0, #1
 <p>For a call to a routine defined in another object file, the assembler can record the reference in x.o. The linker connects the call to its definition. The loader then makes the executable available to the processor.</p>
 </div></details>
 <p><strong>Chapter review · pp. 36–38.</strong> Trace both paths of a conditional, draw the active stack frames across a call, identify an operand’s addressing mode, and follow a reference from source code to a running program.</p>
+<h2>Coding practice</h2>
+<details open><summary>Find the index of the first different element</summary><div class="topic">
+<p>Given the word array below, write an ARM assembly program that starts at index 0 and finds the first element whose value differs from the first element. Leave its zero-based index in <code>r3</code>.</p>
+<pre><code>ARR    DCD     12, 12, 12, -4, 12</code></pre>
+<details><summary>Show the annotated program</summary><div class="topic">
+<pre><code>ARR    DCD     12, 12, 12, -4, 12    ; Each array element occupies 4 bytes.
+       LDR     r0, =ARR               ; r0 holds the address of ARR[0].
+       MOV     r1, #0                 ; Start the index at 0, once before the loop.
+       LDR     r2, [r0]               ; Read ARR[0] once and keep it for every comparison.
+
+Loop   ADD     r12, r0, r1, LSL #2    ; Address = base + index × 4. Only r12 is written.
+       LDR     r9, [r12]              ; Read the word at that address into r9.
+       CMP     r2, r9                 ; Set flags from r2 - r9. CMP r2, [r12] is invalid.
+       BNE     out                    ; Different values give Z = 0. Exit before incrementing.
+       ADD     r1, r1, #1             ; Equal values reach this line. Advance by one element.
+       B       Loop                   ; Recalculate the address using the new index.
+
+out    MOV     r3, r1                 ; Copy the index of the first difference into r3.
+       END                            ; Marks the end of the assembly source.</code></pre>
+<p><strong>Trace the exit.</strong> Indices 0, 1 and 2 all contain 12. At index 3, <code>r12</code> holds the address <code>base + 12</code> and <code>r9</code> holds the word read there, −4. Comparing 12 with −4 takes the branch while <code>r1</code> is still 3, so the result is <strong>r3 = 3</strong>.</p>
+</div></details></div></details>
 </section><section id="lt5" role="tabpanel" aria-labelledby="tab-5" hidden><div class="lecture-label">LECTURE 5</div><h1>Arithmetic for Computers</h1><p>Essentials from LT5, pp. 3–7. Small-width examples make the same principles used in 32-bit ARM easier to trace.</p><details open><summary>5.1 Same bits, different interpretations · pp. 3–4</summary><div class="topic"><p>The same addition/subtraction hardware handles unsigned and two’s-complement signed integers. <strong>The programmer determines how the bits are interpreted.</strong> A leading 1 does not automatically mean a negative number unless the value is being interpreted as signed.</p><pre><code>  1101
 − 0100
 = 1001</code></pre><div class="table-wrap"><table><tr><th>Interpretation (4 bits)</th><th>Calculation</th></tr><tr><td>Unsigned</td><td>13 − 4 = 9</td></tr><tr><td>Signed two’s complement</td><td>−3 − 4 = −7</td></tr></table></div><p>Both interpretations give the same stored result, 1001. For n bits, the unsigned range is 0 to 2ⁿ − 1; the signed range is −2ⁿ⁻¹ to 2ⁿ⁻¹ − 1. Arithmetic stores the low n bits, so you must check whether the mathematical result fits the intended range.</p></div></details><details open><summary>Subtraction by adding the two’s complement · p. 4</summary><div class="topic"><p><strong>A − B = A + (−B).</strong> Form −B by inverting B's bits and adding 1, keeping the chosen bit width.</p><p>Illustrative 4-bit version of the lecture's 7 − 6 example:</p><pre><code>B = 6:           0110
