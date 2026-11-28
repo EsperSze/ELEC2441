@@ -16,3 +16,4 @@
 - When the user annotates text and writes "hidden note", add a concise English explanation at that exact text using the established hover-tooltip format. Show it on mouse hover and keyboard focus; keep it hidden otherwise. Render the tooltip outside clipping containers and position it within the viewport, following the corrected ISR tooltip. Check the change, then commit and push automatically without asking for a separate reminder.
 
 - Use soft gray backgrounds for all text highlights; do not use bright highlight colors. Apply this to future note updates as well.
+- When the user annotates selected text with "H", highlight that exact text in soft gray using the existing mark styling, then check, commit, and push the update.
