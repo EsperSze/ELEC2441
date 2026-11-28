@@ -17,3 +17,14 @@
 
 - Use soft gray backgrounds for all text highlights; do not use bright highlight colors. Apply this to future note updates as well.
 - When the user annotates selected text with "H", highlight that exact text in soft gray using the existing mark styling, then check, commit, and push the update.
+
+## Pending study-answer notes
+
+- The user requested `Pending HTML Updates.md` as a staging file for later HTML updates. From now on, record substantive subsequent ELEC2441 study questions and answers there in English unless Chinese is explicitly requested, without requiring a reminder.
+- Number distinct topics consecutively starting at 1. Consolidate follow-up answers into the existing topic rather than duplicating it; replace incorrect or superseded content. After deleting integrated topics, renumber all remaining entries consecutively from 1; new topics receive the next consecutive number.
+- Include essential explanations and useful examples, retaining lecture phrasing where available. Workflow-only messages do not need study entries.
+- Saving a pending answer does not itself request integration into the HTML. When asked to update HTML, use the consolidated notes and the established commit/push workflow.
+
+- Treat the pending Markdown as a cache: after each note write or HTML update, and during scheduled reconciliation, compare its entries with `ELEC2441 Review.html`. Delete only entries whose essential explanation, corrections, and useful examples are fully incorporated in the HTML, not merely topics with matching titles. Preserve unmatched or partially integrated material, then renumber the remaining entries. Reconciliation itself must not modify or publish HTML.
+
+- Exercise judgment when caching answers: skip trivial confirmations, workflow-only requests, and repetitions that add nothing. Do record explanations that resolve meaningful misconceptions, even when the underlying concept is basic. Consolidate related follow-ups into one numbered topic without waiting for a reminder.
