@@ -265,30 +265,196 @@ MOV r6, r5, LSR #4 ; logical right shift by 4
 MOV r6, r5, LSR r3 ; shift count comes from r3</code></pre><p>The shifted source value feeds the operation; its register is not separately modified. The lecture emphasizes shifts embedded in data-processing instructions. Standalone-looking LSL/LSR syntax can be assembler aliases in this ARM model.</p><h3 id="lt3-shift-optional">What does “optional operation” mean?</h3>
 <p>The p. 20 chart does not explicitly define the phrase. Read it alongside p. 30: ARM offers the ability to shift the second operand as part of a data-processing instruction. In that context, interpret it as an <strong>optional shift attached to the operation</strong>, not an optional topic to study or a shift the CPU may ignore.</p><pre><code><span class="isr-help operand-help" tabindex="0" aria-describedby="operand-help-54">ADD r5, r1, r2<span id="operand-help-54" role="tooltip">r5 is the destination register. r1 and r2 supply the source values. Only the destination register receives the result.</span></span>          ; no shift
 <span class="isr-help operand-help" tabindex="0" aria-describedby="operand-help-55">ADD r5, r1, r2, LSL #2<span id="operand-help-55" role="tooltip">r5 is the destination register. r1 and r2 supply the source values. LSL #2 shifts the value supplied by the third operand left by 2 bits before the operation; it does not change that source register. Only the destination register receives the result.</span></span>  ; r5 = r1 + (r2 &lt;&lt; 2)</code></pre><p>With r1 = 3 and r2 = 5, the first gives 8; the second gives 3 + 5 × 4 = 23. r2 stays 5. The programmer chooses whether to include the shift; once specified, it is part of the operation.</p><pre><code><span class="isr-help operand-help" tabindex="0" aria-describedby="operand-help-56">MOV r1, r2, LSL #10<span id="operand-help-56" role="tooltip">r1 is the destination; r2 is the source. MOV copies the source value. The shift modifies the value being copied, not the source register. The source register stays unchanged; no memory is accessed.</span></span>  ; express the chart’s left-shift operation
-<span class="isr-help operand-help" tabindex="0" aria-describedby="operand-help-57">MOV r1, r2, LSR #10<span id="operand-help-57" role="tooltip">r1 is the destination; r2 is the source. MOV copies the source value. The shift modifies the value being copied, not the source register. The source register stays unchanged; no memory is accessed.</span></span>  ; express the chart’s logical right-shift operation</code></pre><p>Shift amounts are <strong>bit positions</strong>. These MOV forms express the table's <code><span class="isr-help operand-help" tabindex="0" aria-describedby="operand-help-58">LSL r1, r2, #10<span id="operand-help-58" role="tooltip">r1 is the destination register; r2 supplies the value to shift; #10 is the immediate shift amount in bits, not bytes. Shift left and store the result in r1. r2 remains unchanged.</span></span></code> and <code><span class="isr-help operand-help" tabindex="0" aria-describedby="operand-help-59">LSR r1, r2, #10<span id="operand-help-59" role="tooltip">r1 is the destination register; r2 supplies the value to shift; #10 is the immediate shift amount in bits, not bytes. Shift right and store the result in r1. r2 remains unchanged.</span></span></code> using the lecture's combined-operand syntax.</p></div></details></section><section id="lt4" role="tabpanel" aria-labelledby="tab-4" hidden><div class="lecture-label">LECTURE 4</div><h1>ARM Assembly Programs</h1><p>Essential explanations based on LT4, pp. 3–35. Examples use the lecture’s 32-bit ARM model.</p><details open><summary>4.1 Decisions: compare, then choose a path · pp. 3–6</summary><div class="topic"><p><code>CMP r3,r4</code> updates flags as if computing r3 − r4, without changing either register. A conditional branch tests these flags. BEQ means equal; BNE means unequal. B always branches.</p><p><strong>Signed maximum:</strong> r3 holds a, r4 holds b; put max(a,b) in r5.</p><pre><code>CMP r3, r4
-BLE b_max
-MOV r5, r3
-B Exit          ; skip the else block
-b_max MOV r5, r4
-Exit</code></pre><p>The unconditional branch prevents the first answer being overwritten by the else block. If a = b, either value is a valid maximum.</p></div></details><details open><summary>Choose signed or unsigned conditions · pp. 8–10</summary><div class="topic"><div class="table-wrap"><table><tr><th>Comparison after CMP</th><th>Signed</th><th>Unsigned</th></tr><tr><td>Equal / not equal</td><td>BEQ / BNE</td><td>BEQ / BNE</td></tr><tr><td>Less / less or equal</td><td>BLT / BLE</td><td>BLO / BLS</td></tr><tr><td>Greater / greater or equal</td><td>BGT / BGE</td><td>BHI / BHS</td></tr></table></div><p><strong>Flag reminder:</strong> N = negative result, Z = zero, C = carry (no borrow for subtraction), V = signed overflow. BLT tests N ≠ V; BGE tests N = V. BMI only tests N, so it is not a safe replacement for BLT after a comparison that can overflow. BVS/BVC test overflow/no overflow.</p><p><strong>Bounds shortcut:</strong> for signed index x and positive bound y within the signed positive range:</p><pre><code>CMP r1, r2           ; x in r1, y in r2
-BHS IndexOutOfBounds ; unsigned x >= y</code></pre><p>A negative x appears as a very large unsigned number, so this rejects both x &lt; 0 and x ≥ y. For x = −1 and y = 12, unsigned x is 4,294,967,295: reject it.</p></div></details><details open><summary>Loops: test, exit, update, repeat · p. 7</summary><div class="topic"><p>Translate <code>while (a[i] == k) i++;</code>, with i in r3, k in r5, and a's base in r6. Assume valid accessible 32-bit array elements.</p><pre><code>Loop ADD r12, r6, r3, LSL #2 ; address = base + i × 4
-LDR r0, [r12]                ; read a[i]
-CMP r0, r5
-BNE Exit                    ; exit when condition is false
-ADD r3, r3, #1              ; increment index, not by 4
-B Loop
-Exit</code></pre><p>Recalculate the address and reload the element each iteration. The index increases by 1; multiplying it by 4 converts it to a byte offset. For <code>while (a[i] != k)</code>, change the exit branch to BEQ. Real programs also need a bounds check if no valid stopping element is guaranteed.</p></div></details><details open><summary>Conditional execution and PC-relative branches · pp. 9–13</summary><div class="topic"><p>A condition suffix can apply to an operation, not just a branch. The lecture's pay example becomes:</p><pre><code>CMP r0, r1       ; year versus next_leap
-ADDEQ r2, r3, r4 ; equal: pay = earn + bonus
-SUBNE r2, r3, r4 ; unequal: pay = earn - bonus</code></pre><p>These ADD/SUB forms do not update flags, so both conditions refer to the same CMP. An intervening flag-changing instruction could change which operation executes.</p><p><strong>Branch target in the lecture's ARM model:</strong> current instruction address + 8 + (sign-extended 24-bit displacement × 4). The encoded displacement counts words, not bytes. A source label is resolved by the assembler.</p><p>The displacement is relative, not a full absolute address. Its reach is approximately ±32 MiB from the architectural PC; it cannot reach every 32-bit address in one branch. If PC already denotes current instruction address + 8, do not add 8 again.</p></div></details><details open><summary>4.2 Procedures: arguments, result and return · pp. 14–17</summary><div class="topic"><p>A procedure is reusable code. The <strong>caller</strong> invokes it; the <strong>callee</strong> performs the task and returns.</p><div class="io-flow"><span>Pass arguments<br>r0–r3</span><b>→</b><span>BL procedure<br>save return address in LR</span><b>→</b><span>Save needed state<br>Compute result</span><b>→</b><span>Result in r0<br>Restore state and return</span></div><p><code>BL</code> overwrites LR with the address of the next instruction. The lecture returns with <code>MOV pc,lr</code>. A leaf procedure calls no other procedure; a non-leaf procedure makes another call. A recursive procedure calls itself.</p><p>Preserve r4–r11 when modifying them, and restore SP before returning. r0–r3 and r12 may be changed by a call: the caller saves any values it still needs. Follow stricter register-preservation requirements if a question explicitly gives them. Do not restore an old value over the required result register.</p><p><strong>Nested call trap:</strong> save the incoming LR before another BL overwrites it, then restore it before returning to your caller.</p></div></details><details open><summary>Stack: reserve space, save, restore, release · pp. 16–18</summary><div class="topic"><p>SP is r13. The lecture's stack grows toward lower addresses. Saving three 32-bit registers needs 12 bytes.</p><pre><code>SUB sp, sp, #12
-STR r4, [sp,#0]
-STR r5, [sp,#4]
-STR r6, [sp,#8]
-; compute using r4–r6; place result in r0
-LDR r4, [sp,#0]
-LDR r5, [sp,#4]
-LDR r6, [sp,#8]
-ADD sp, sp, #12
-MOV pc, lr</code></pre><p>If SP starts at 0x1000, reserving 12 bytes makes it 0x0FF4. Slots are 0x0FF4, 0x0FF8 and 0x0FFC. Releasing the frame restores SP to 0x1000; it does not erase those memory bytes. Always match every allocation with a release on every return path. This is the lecture's simple leaf-procedure layout.</p></div></details><details open><summary>Recursion: each call needs its own saved state · pp. 19–29</summary><div class="topic"><p>For positive n, <strong>Accum(n) = n + Accum(n−1)</strong>, with Accum(1) = 1. Each call saves its own n and return address before making the next call.</p><div class="io-flow"><span>Accum(3)<br>save n=3 and LR</span><b>→</b><span>Accum(2)<br>save n=2 and LR</span><b>→</b><span>Accum(1)<br>return 1</span></div><p>Unwinding: Accum(2) returns 2 + 1 = 3; Accum(3) returns 3 + 3 = 6. The lecture's n = 10 example returns <strong>55</strong>.</p><p>Its frame reserves 8 bytes: saved n at [sp,#0], saved LR at [sp,#4]. Ten active calls reserve 80 bytes. After the recursive call returns in r0, preserve that partial result before reloading the original n. Restore LR and release the frame before returning.</p><p><strong>Why the stack matters:</strong> one shared register cannot remember every call's n and return address. Separate frames preserve them in reverse return order. A base case stops further calls; without one, recursion keeps consuming stack space.</p></div></details><details open><summary>4.3 Seven addressing modes to recognize · pp. 31–33</summary><div class="topic"><div class="table-wrap"><table><tr><th>Mode</th><th>Example</th><th>Meaning</th></tr><tr><td>Immediate</td><td>ADD r2,r0,#32</td><td>Operand is constant 32.</td></tr><tr><td>Register</td><td>ADD r2,r0,r1</td><td>Operand is r1's value.</td></tr><tr><td>Scaled Register</td><td>ADD r2,r0,r1,LSL #2</td><td>Use r1 shifted left by 2.</td></tr><tr><td>PC-Relative</td><td>BEQ Target</td><td>Branch displacement relative to PC.</td></tr><tr><td>Immediate Offset</td><td>LDR r5,[r3,#32]</td><td>Memory address = r3 + 32.</td></tr><tr><td>Register Offset</td><td>LDR r5,[r3,r1]</td><td>Memory address = r3 + r1.</td></tr><tr><td>Scaled Register Offset</td><td>LDR r5,[r3,r1,LSL #2]</td><td>Memory address = r3 + (r1 × 4).</td></tr></table></div><p><strong>Key distinction:</strong> Scaled Register computes with a shifted value; Scaled Register Offset uses it to locate memory. Brackets indicate memory access. Shift only the offset register, not the whole sum. With r3 = 0x1000 and r1 = 3, the final example loads from 0x100C.</p></div></details><details open><summary>4.4 From source code to execution · pp. 34–35</summary><div class="topic"><div class="io-flow"><span>C source</span><b>→ Compiler →</b><span>Assembly</span><b>→ Assembler →</b><span>Object module</span><b>→ Linker + libraries →</b><span>Executable</span><b>→ Loader →</b><span>Memory / execution</span></div><ul><li><strong>Compiler:</strong> translates high-level code, conceptually into assembly in this lecture.</li><li><strong>Assembler:</strong> converts assembly into machine-code object modules.</li><li><strong>Linker:</strong> combines modules and libraries and resolves references between them.</li><li><strong>Loader:</strong> places/maps the executable into memory and prepares it to run.</li></ul><p>An object module is not necessarily a complete runnable program. Resolving external references is the linker's job; the CPU executes machine instructions after loading.</p></div></details></section><section id="lt5" role="tabpanel" aria-labelledby="tab-5" hidden><div class="lecture-label">LECTURE 5</div><h1>Arithmetic for Computers</h1><p>Essentials from LT5, pp. 3–7. Small-width examples make the same principles used in 32-bit ARM easier to trace.</p><details open><summary>5.1 Same bits, different interpretations · pp. 3–4</summary><div class="topic"><p>The same addition/subtraction hardware handles unsigned and two’s-complement signed integers. <strong>The programmer determines how the bits are interpreted.</strong> A leading 1 does not automatically mean a negative number unless the value is being interpreted as signed.</p><pre><code>  1101
+<span class="isr-help operand-help" tabindex="0" aria-describedby="operand-help-57">MOV r1, r2, LSR #10<span id="operand-help-57" role="tooltip">r1 is the destination; r2 is the source. MOV copies the source value. The shift modifies the value being copied, not the source register. The source register stays unchanged; no memory is accessed.</span></span>  ; express the chart’s logical right-shift operation</code></pre><p>Shift amounts are <strong>bit positions</strong>. These MOV forms express the table's <code><span class="isr-help operand-help" tabindex="0" aria-describedby="operand-help-58">LSL r1, r2, #10<span id="operand-help-58" role="tooltip">r1 is the destination register; r2 supplies the value to shift; #10 is the immediate shift amount in bits, not bytes. Shift left and store the result in r1. r2 remains unchanged.</span></span></code> and <code><span class="isr-help operand-help" tabindex="0" aria-describedby="operand-help-59">LSR r1, r2, #10<span id="operand-help-59" role="tooltip">r1 is the destination register; r2 supplies the value to shift; #10 is the immediate shift amount in bits, not bytes. Shift right and store the result in r1. r2 remains unchanged.</span></span></code> using the lecture's combined-operand syntax.</p></div></details></section><section id="lt4" role="tabpanel" aria-labelledby="tab-4" hidden>
+<div class="lecture-label">LECTURE 4</div><h1>ARM Assembly Programs</h1>
+<p>Examples use the 32-bit ARM model in VisUAL2. A semicolon begins a comment. <a href="lectures/LTN4.pdf">Original lecture slides (PDF)</a></p>
+<h2>4.1 · Decision making</h2>
+<details open><summary>Compare two values and choose a path · pp. 3–5</summary><div class="topic">
+<p><code>CMP r3, r4</code> sets the condition flags as if subtracting r4 from r3. Both registers keep their values. <code>BEQ L1</code> then jumps to L1 if the values are equal (Z = 1). <code>BNE L1</code> jumps if they differ (Z = 0). A label names the address of an instruction. The assembler resolves its location, so L1 can appear anywhere within branch range.</p>
+<p>When a forward branch is taken, execution skips the intervening instructions and resumes at the label. Otherwise it continues on the next line. Plain <code>B</code> always jumps. Plain <code>BL</code> also saves a return address in LR.</p>
+<p><strong>Lecture example.</strong> Put the larger signed value in r5. In C, <code>if (a &gt; b) max = a; else max = b;</code>. Register r3 holds a and r4 holds b.</p>
+<pre><code>        CMP r3, r4
+        BLE b_max       ; branch if a &lt;= b (signed)
+        MOV r5, r3      ; a &gt; b: choose a
+        B   Exit        ; skip the other assignment
+b_max   MOV r5, r4      ; a &lt;= b: choose b
+Exit</code></pre>
+<p>With 15 and 16, <code>CMP</code> sets N = 1, Z = 0, C = 0 and V = 0. <code>BLE</code> tests Z = 1 or N ≠ V. It takes the branch and r5 becomes 16. With 20 and 16, execution reaches the first MOV and r5 becomes 20. <code>B Exit</code> prevents the following MOV from overwriting 20. The second MOV needs no branch because Exit follows immediately. Equal inputs take the b_max path and give the common value.</p>
+<details><summary>Practice variation · choose the smaller signed value</summary><div class="topic">
+<pre><code>        CMP r3, r4
+        BLE putSmall
+        MOV r5, r4
+        B   Exit
+putSmall MOV r5, r3
+Exit</code></pre>
+<p>For 24 and 17 the result is 17. For −2 and 1 the branch is taken and r5 receives −2. Equality also takes the branch. In each case the two inputs keep their values.</p>
+</div></details>
+</div></details>
+<details open><summary>Yearly pay · translate an if–else into ARM · pp. 5–6</summary><div class="topic">
+<p><strong>Try it first.</strong> Assume year, next_leap, pay, earn and bonus correspond to r0, r1, r2, r3 and r4 respectively. Write the following as a comparison and conditional branch. Place the answer in r2.</p>
+<pre><code>if (year == next_leap)
+    pay = earn + bonus;
+else
+    pay = earn - bonus;</code></pre>
+<p>A leap year has 366 days. Here the next leap year is supplied as an input. Even 2028 takes the unequal path if next_leap still contains 2024. This single decision compares the supplied values.</p>
+<details><summary>Show the lecture solution and check both paths</summary><div class="topic">
+<pre><code>        CMP r0, r1
+        BNE Else
+        ADD r2, r3, r4
+        B   Exit
+Else    SUB r2, r3, r4
+Exit</code></pre>
+<p>For 2022 versus 2024 the simulator gives 180 − 20 = 160. With equal years and the same earnings and bonus, pay becomes 200.</p>
+</div></details>
+</div></details>
+<details open><summary>Array loop · while (a[i] == k) i++ · p. 7</summary><div class="topic">
+<p>Keep i in r3, k in r5 and the base address of the word array in r6. Each pass locates the current element, reads its value and decides whether to advance.</p>
+<pre><code>Loop    ADD r12, r6, r3, LSL #2  ; r12 = address of a[i]
+        LDR r0, [r12, #0]        ; r0 = value of a[i]
+        CMP r0, r5
+        BNE Exit                 ; exit when a[i] differs from k
+        ADD r3, r3, #1           ; i++ only on equality
+        B   Loop
+Exit</code></pre>
+<div class="table-wrap"><table><thead><tr><th scope="col">Base (decimal)</th><th scope="col">Index r3</th><th scope="col">Shifted operand (offset)</th><th scope="col">Address r12</th></tr></thead><tbody>
+<tr><td>1000</td><td>3</td><td>3 &lt;&lt; 2 = 12 bytes</td><td>1012</td></tr>
+<tr><td>1000</td><td>4</td><td>4 &lt;&lt; 2 = 16 bytes</td><td>1016</td></tr>
+</tbody></table></div>
+<p>LSL shifts the value read from r3 left by two bit positions and fills the two low positions with zeros (binary 11 becomes 1100). The shifted value feeds the addition directly. The only destination of this ADD is r12. To write the shift back to r3, the instruction would need r3 as its destination. The later <code>ADD r3, r3, #1</code> advances the stored index.</p>
+<p>If a[3] equals k, the next pass checks a[4]. If a[4] differs, the loop exits with i = 4. Address 1012 holds the first byte of a[3], which occupies 1012–1015. Address 1016 begins a[4]. Adjacent byte addresses differ by one, and adjacent word starts by four. A loop with a known array length can check the index before LDR.</p>
+<p><span class="past-paper-tested" title="2019 Q2(b), 2021 Q2(b)">Changing the loop condition</span> changes the exit branch. To continue while unequal, exit on equality with <code>BEQ Exit</code>.</p>
+</div></details>
+<details open><summary>One comparison checks both array bounds · pp. 8–9</summary><div class="topic">
+<p>For a 12-element array, valid indices run from 0 to 11. Let r1 hold the signed 32-bit index x and r2 hold the positive signed length y. Before loading an element, branch to your error handler if x is negative or x ≥ y.</p>
+<pre><code>        CMP r1, r2
+        BHS IndexOutOfBounds     ; unsigned x &gt;= y
+        ; valid index: array access can proceed here</code></pre>
+<div class="table-wrap"><table><thead><tr><th scope="col">Signed x</th><th scope="col">Unsigned interpretation</th><th scope="col">Action when y = 12</th></tr></thead><tbody>
+<tr><td>−2 (0xFFFFFFFE)</td><td>4,294,967,294</td><td>Branch</td></tr>
+<tr><td>−1 (0xFFFFFFFF)</td><td>4,294,967,295</td><td>Branch</td></tr>
+<tr><td>0 or 11</td><td>0 or 11</td><td>Continue</td></tr>
+<tr><td>12</td><td>12</td><td>Branch on equality</td></tr>
+</tbody></table></div>
+<p>Each negative index has bit 31 set. In unsigned arithmetic that bit alone contributes 2³¹, above every positive signed 32-bit length. The unsigned comparison therefore catches both negative and excessively large indices. After CMP, BHS tests C = 1 (no borrow). Keep those flags intact until the branch, and define IndexOutOfBounds at your handling code.</p>
+<p><span class="past-paper-tested" title="2022 Q1(4), 2024 Q1(1)">BHS versus BGE</span> appeared directly in 2022 Q1(4) with −1 and 20 and 2024 Q1(1) with −3 and 24 (3 marks each). BGE uses signed ordering and would let those negative indices through.</p>
+</div></details>
+<details open><summary>Condition field, branch targets and conditional execution · pp. 9–13</summary><div class="topic">
+<p>The 4-bit Cond field selects the condition for a branch or a conditional data operation. Read comparison rows below after <code>CMP a, b</code>. N is the result sign bit, Z indicates zero, C indicates no borrow for this subtraction, and V indicates signed overflow.</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Hex</th><th scope="col">Suffix and meaning</th><th scope="col">Test</th><th scope="col">Hex</th><th scope="col">Suffix and meaning</th><th scope="col">Test</th></tr></thead><tbody>
+<tr><td>0</td><td>EQ · equal</td><td>Z = 1</td><td>8</td><td>HI · unsigned higher</td><td>C = 1 and Z = 0</td></tr>
+<tr><td>1</td><td>NE · unequal</td><td>Z = 0</td><td>9</td><td>LS · unsigned lower or same</td><td>C = 0 or Z = 1</td></tr>
+<tr><td>2</td><td>HS · unsigned higher or same</td><td>C = 1</td><td>A</td><td>GE · signed greater or equal</td><td>N = V</td></tr>
+<tr><td>3</td><td>LO · unsigned lower</td><td>C = 0</td><td>B</td><td>LT · signed less</td><td>N ≠ V</td></tr>
+<tr><td>4</td><td>MI · minus</td><td>N = 1</td><td>C</td><td>GT · signed greater</td><td>Z = 0 and N = V</td></tr>
+<tr><td>5</td><td>PL · plus (includes zero)</td><td>N = 0</td><td>D</td><td>LE · signed less or equal</td><td>Z = 1 or N ≠ V</td></tr>
+<tr><td>6</td><td>VS · overflow set</td><td>V = 1</td><td>E</td><td>AL · always</td><td>Always</td></tr>
+<tr><td>7</td><td>VC · overflow clear</td><td>V = 0</td><td>F</td><td>NV · reserved in lecture table</td><td>—</td></tr>
+</tbody></table></div>
+<p>Use the signed conditions for signed integers and LO/LS/HI/HS for unsigned integers. Checking N alone can give the wrong signed ordering after overflow. A case/switch can be built from successive comparisons and conditional branches.</p>
+<p><strong>Where does a branch go?</strong> The ARM-state B/BL encoding has a 4-bit condition, branch opcode bits and a link bit, then a signed 24-bit displacement in words. Labels let the assembler compute the displacement. Writing r15 (PC), for example with <code>MOV pc, lr</code> or a load into pc, also redirects execution.</p>
+<p><span class="past-paper-tested" title="2022 Q1(5), 2024 Q1(3)">Target address = address of the branch instruction + 8 + (signed word displacement × 4)</span>. A word spans 4 bytes. From 0x1000, a displacement of +3 targets 0x1008 + 12 = 0x1014. A negative displacement branches backwards. The 32-bit PC supplies the base and the signed field reaches about 32 MiB in either direction. If given the architectural PC value, it already includes the +8.</p>
+<details><summary>Conditional execution · shorter version of the pay example</summary><div class="topic">
+<pre><code>        CMP   r0, r1
+        ADDEQ r2, r3, r4     ; execute when Z = 1
+        SUBNE r2, r3, r4     ; execute when Z = 0</code></pre>
+<p>Both arithmetic instructions test the flags from the same CMP. These forms leave those flags intact. Exactly one writes r2. This gives the same 160 on the unequal-year slide example.</p>
+</div></details>
+</div></details>
+<h2>4.2 · Calling procedures</h2>
+<details open><summary>From caller to callee and back · pp. 14–16, 29–30</summary><div class="topic">
+<p>A procedure packages a task that can be called from another point in a program. The <strong>caller</strong> requests the work. The <strong>callee</strong> performs it. A leaf procedure makes no calls. A non-leaf procedure calls another procedure, and a recursive procedure calls itself.</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Step</th><th scope="col">What the program does</th></tr></thead><tbody>
+<tr><td>1 · Pass parameters</td><td>Caller places the first four arguments in r0–r3.</td></tr>
+<tr><td>2 · Call</td><td>BL X writes the address following the call into lr (r14), then branches to X. For a call at 0x1000, the return address is 0x1004.</td></tr>
+<tr><td>3 · Acquire storage</td><td>Callee reserves stack space and saves registers or the incoming return address as needed.</td></tr>
+<tr><td>4 · Perform the task</td><td>Compute using the arguments, local values and scratch registers.</td></tr>
+<tr><td>5 · Deliver the result</td><td>Use r0 for the usual single-word result. The lecture also identifies r1 as a second return-value register. Restore saved registers and release local storage.</td></tr>
+<tr><td>6 · Return</td><td>MOV pc, lr loads the return address into r15 (PC). Execution resumes at the instruction after BL.</td></tr>
+</tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th scope="col">Resource</th><th scope="col">Whose responsibility?</th></tr></thead><tbody>
+<tr><td>r4–r11 · variable registers</td><td>A callee that uses one saves its incoming value and restores it before returning. The lecture uses these for additional working values.</td></tr>
+<tr><td>r0–r3 · arguments/results, r12 · scratch</td><td>A caller that needs an old value after a call saves it beforehand. Copy the return value to a safe place before restoring an old value over it.</td></tr>
+<tr><td>lr · return address</td><td>A nested BL overwrites lr. A non-leaf procedure saves its incoming return address before making its next call.</td></tr>
+<tr><td>sp (r13) and caller’s stack</td><td>sp points to the top of the stack. Allocate toward lower addresses. Write within the allocated frame and preserve the caller’s older frame at higher addresses. Space below the current sp is available for later allocations. Return sp to its entry value.</td></tr>
+</tbody></table></div>
+<p><span class="past-paper-tested" title="2023 Q2(a)">Saving registers and returning a result</span> are explicit requirements of the 2023 yearly-salary procedure. Follow the preservation requirements stated in each question.</p>
+</div></details>
+<details open><summary>Leaf procedure simp_F · three saved registers · pp. 16–19</summary><div class="topic">
+<p>The lecture function returns <code>(g + h) − (i + j)</code>. Arguments g, h, i and j enter in r0, r1, r2 and r3. The callee uses r4 for k and r5 and r6 for the two sums. Three saved 32-bit values require 12 bytes.</p>
+<pre><code>simp_F  SUB sp, sp, #12
+        STR r6, [sp, #8]
+        STR r5, [sp, #4]
+        STR r4, [sp, #0]
+        ADD r5, r0, r1      ; g + h
+        ADD r6, r2, r3      ; i + j
+        SUB r4, r5, r6      ; k
+        MOV r0, r4          ; copy k to the return register
+        LDR r4, [sp, #0]
+        LDR r5, [sp, #4]
+        LDR r6, [sp, #8]
+        ADD sp, sp, #12
+        MOV pc, lr</code></pre>
+<p>Follow the stack diagram on p. 18 with an illustrative entry sp of 0x1000. The first SUB moves sp to 0x0FF4. The old r4 occupies 0x0FF4, old r5 occupies 0x0FF8 and old r6 occupies 0x0FFC. Each LDR uses the same offset as its matching STR. Adding 12 releases this frame and returns sp to 0x1000.</p>
+<p>In the slide’s run, r5 becomes 160 + 28 = 188 and r6 becomes 97 + 16 = 113. The answer is 75. Copying k into r0 before restoring r4 lets the caller receive 75 while also recovering its original r4.</p>
+</div></details>
+<details open><summary>Recursive procedure Accum · follow the stack down and back up · pp. 19–29</summary><div class="topic">
+<p>For positive n, <code>Accum(1) = 1</code> and <code>Accum(n) = n + Accum(n − 1)</code>. Every active call needs its own n and return address. Each call reserves two words: [sp] for n and [sp, #4] for lr.</p>
+<pre><code>Main    MOV r0, #10
+        BL  Accum
+        END
+
+Accum   SUB sp, sp, #8
+        STR lr, [sp, #4]
+        STR r0, [sp, #0]
+        CMP r0, #1
+        BGT L1
+        MOV r0, #1          ; base case
+        ADD sp, sp, #8
+        MOV pc, lr
+
+L1      SUB r0, r0, #1
+        BL  Accum           ; returns Accum(n - 1) in r0
+        MOV r12, r0         ; keep that result while recovering n
+        LDR r0, [sp, #0]
+        LDR lr, [sp, #4]
+        ADD sp, sp, #8
+        ADD r0, r12, r0     ; Accum(n - 1) + original n
+        MOV pc, lr</code></pre>
+<p>At the base case there is no nested BL, so lr still holds the correct return address. On the recursive path BL changes lr and r0 now holds the child’s answer. Save that answer in r12, reload the parent’s n and lr, then add. r12 only has to survive until the final ADD in this call.</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Point in the slide trace</th><th scope="col">Live frames</th><th scope="col">What to look for in Registers / Memory</th></tr></thead><tbody>
+<tr><td>Enter Accum(10) · pp. 20–21</td><td>1 · 8 bytes</td><td>Save n = 10 and the return address in Main.</td></tr>
+<tr><td>Enter Accum(9) · pp. 22–24</td><td>2 · 16 bytes</td><td>sp drops another 8 bytes. The newer frame saves 9 and the return point inside Accum(10). The older frame still holds 10.</td></tr>
+<tr><td>Reach Accum(1) · pp. 25–26</td><td>10 · 80 bytes</td><td>The register r0 is now 1. The stack still remembers every pending addition from 2 through 10.</td></tr>
+<tr><td>Return through 2 … 9 · pp. 26–28</td><td>One frame released per return</td><td>The answer grows: 1 + 2 = 3, then 3 + 3 = 6. Accum(9) returns 36 + 9 = 45.</td></tr>
+<tr><td>Return to Main · p. 29</td><td>0 · sp restored</td><td>Accum(10) returns 45 + 10 = 55 in r0.</td></tr>
+</tbody></table></div>
+</div></details>
+<h2>4.3 · Addressing modes</h2>
+<details open><summary>Seven ways to specify an operand or address · pp. 31–33</summary><div class="topic">
+<p>The slides describe twelve ARM addressing modes and focus on the following seven. An immediate, a register, or a shifted register can supply a value to arithmetic. For a load, brackets enclose the calculation of the memory address. Shifts, encoded constants (including rotated immediates) and conditional execution help express more work in fewer instructions.</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Lecture mode</th><th scope="col">Example</th><th scope="col">How to read it</th></tr></thead><tbody>
+<tr><td>Immediate</td><td><code>ADD r2, r0, #32</code></td><td>Add the constant 32 to r0.</td></tr>
+<tr><td>Register</td><td><code>ADD r2, r0, r1</code></td><td>Add the value in r1 to r0.</td></tr>
+<tr><td>Scaled Register</td><td><code>ADD r2, r0, r1, LSL #2</code></td><td>Add four times the value in r1 to r0. The sum goes to r2.</td></tr>
+<tr><td>PC-Relative</td><td><code>BEQ Target</code></td><td>When Z = 1, add the encoded displacement (in words, scaled by 4) to the architectural PC to find Target.</td></tr>
+<tr><td>Immediate Offset</td><td><code>LDR r5, [r3, #32]</code></td><td>Load the word beginning 32 bytes beyond the address in r3.</td></tr>
+<tr><td>Register Offset</td><td><code>LDR r5, [r3, r1]</code></td><td>r1 supplies the byte offset. Load the word at r3 + r1.</td></tr>
+<tr><td>Scaled Register Offset</td><td><code>LDR r5, [r3, r1, LSL #2]</code></td><td>r1 supplies a word index. Scale it to bytes and load the word at r3 + 4 × r1.</td></tr>
+</tbody></table></div>
+<p><span class="past-paper-tested" title="2018 Q2(a), 2021 Q2(a)">Identify the addressing mode of an instruction</span>. For r3 = 0x1000 and r1 = 3, <code>ADD r2, r3, r1, LSL #2</code> puts 0x100C in r2. With <code>LDR r5, [r3, r1, LSL #2]</code>, the CPU uses that same 0x100C as an address and copies the word stored there into r5.</p>
+</div></details>
+<h2>4.4 · Translating and starting a program</h2>
+<details open><summary>Follow a C file from source to execution · pp. 34–35</summary><div class="topic">
+<div class="table-wrap"><table><thead><tr><th scope="col">Stage</th><th scope="col">Input → output</th><th scope="col">What the stage resolves</th></tr></thead><tbody>
+<tr><td>Compiler</td><td>x.c → x.s</td><td>Translates the high-level C program into symbolic assembly in the lecture model.</td></tr>
+<tr><td>Assembler</td><td>x.s → x.o</td><td>Encodes instructions as machine code in an object module. References to other modules can still need resolution.</td></tr>
+<tr><td>Linker</td><td>Object modules and libraries → executable (a.out)</td><td>Combines modules, resolves symbol references and arranges code and data. The slide shows library inputs such as y.a or y.so.</td></tr>
+<tr><td>Loader</td><td>Executable → memory</td><td>Places or maps the program into memory and starts execution at the entry point.</td></tr>
+</tbody></table></div>
+<p>For a call to a routine defined in another object file, the assembler can record the reference in x.o. The linker connects the call to its definition. The loader then makes the executable available to the processor.</p>
+</div></details>
+<p><strong>Chapter review · pp. 36–38.</strong> Trace both paths of a conditional, draw the active stack frames across a call, identify an operand’s addressing mode, and follow a reference from source code to a running program.</p>
+</section><section id="lt5" role="tabpanel" aria-labelledby="tab-5" hidden><div class="lecture-label">LECTURE 5</div><h1>Arithmetic for Computers</h1><p>Essentials from LT5, pp. 3–7. Small-width examples make the same principles used in 32-bit ARM easier to trace.</p><details open><summary>5.1 Same bits, different interpretations · pp. 3–4</summary><div class="topic"><p>The same addition/subtraction hardware handles unsigned and two’s-complement signed integers. <strong>The programmer determines how the bits are interpreted.</strong> A leading 1 does not automatically mean a negative number unless the value is being interpreted as signed.</p><pre><code>  1101
 − 0100
 = 1001</code></pre><div class="table-wrap"><table><tr><th>Interpretation (4 bits)</th><th>Calculation</th></tr><tr><td>Unsigned</td><td>13 − 4 = 9</td></tr><tr><td>Signed two’s complement</td><td>−3 − 4 = −7</td></tr></table></div><p>Both interpretations give the same stored result, 1001. For n bits, the unsigned range is 0 to 2ⁿ − 1; the signed range is −2ⁿ⁻¹ to 2ⁿ⁻¹ − 1. Arithmetic stores the low n bits, so you must check whether the mathematical result fits the intended range.</p></div></details><details open><summary>Subtraction by adding the two’s complement · p. 4</summary><div class="topic"><p><strong>A − B = A + (−B).</strong> Form −B by inverting B's bits and adding 1, keeping the chosen bit width.</p><p>Illustrative 4-bit version of the lecture's 7 − 6 example:</p><pre><code>B = 6:           0110
 Invert:          1001
